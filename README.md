@@ -31,8 +31,9 @@ Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/ver
 
 ## TODO
 
-- [ ] make it deploy
-- [ ] scaffold basic ui with mock data
-- [ ] set up database
-- [ ] attach database to ui
-- [ ] add authentication
+- [ ] Build backend tRPC APIs.
+- [ ] Frontend brain dump input + call AI OpenAI + save tasks.
+- [ ] Show task list with CRUD + drag & drop reorder.
+- [ ] Logic to carry incomplete tasks forward day-by-day.
+- [ ] Design & render completion heatmap grid.
+- [ ] Ability to click heatmap day to view tasks from that day.
