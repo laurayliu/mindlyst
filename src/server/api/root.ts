@@ -1,6 +1,7 @@
 import { taskRouter } from "./routers/task";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
-
+import { hfRouter } from "./routers/hf";
+import { googleTasksRouter } from "./routers/googleTasks";
 /**
  * This is the primary router for your server.
  *
@@ -8,6 +9,8 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   task: taskRouter,
+  hf: hfRouter,
+  googleTasks: googleTasksRouter,
 });
 
 // export type definition of API
