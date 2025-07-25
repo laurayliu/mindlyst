@@ -17,7 +17,6 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    GOOGLE_API_KEY: z.string().min(1),
     HF_ACCESS_TOKEN: z.string().min(1),
     HF_SUMMARIZATION_MODEL: z.string().min(1),
     HF_TASK_EXTRACTION_MODEL: z.string().min(1),
@@ -42,7 +41,6 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     HF_ACCESS_TOKEN: process.env.HF_ACCESS_TOKEN,
     HF_SUMMARIZATION_MODEL: process.env.HF_SUMMARIZATION_MODEL,
     HF_TASK_EXTRACTION_MODEL: process.env.HF_TASK_EXTRACTION_MODEL,
