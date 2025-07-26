@@ -2,9 +2,8 @@
 import { z } from "zod";
 import { google } from "googleapis"; // Import the googleapis library
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { env } from "~/env.js"; // Changed from env.js to env.mjs as per your setup
+import { env } from "~/env.js";
 
-// Define a custom interface for Google API errors to improve type safety
 interface GoogleAPIErrorResponse {
     status?: number; // HTTP status code
     data?: unknown; // Response body
@@ -20,23 +19,23 @@ export const googleTasksRouter = createTRPCRouter({
       z.object({
         taskTitle: z.string().min(1, "Task title cannot be empty"),
         taskNotes: z.string().optional(),
-        uiId: z.string(), // <--- THIS LINE IS CRUCIAL: ADD IT HERE
+        uiId: z.string(), // super important
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Ensure user is authenticated and has an access token
+      // user is authenticated and has access token
       if (!ctx.session?.accessToken) {
         throw new Error("User not authenticated or access token missing.");
       }
       try {
-        // Create an OAuth2 client with the user's access token
+        // create OAuth2 client with the user's access token
         const auth = new google.auth.OAuth2(
           env.GOOGLE_CLIENT_ID,
           env.GOOGLE_CLIENT_SECRET,
         );
         auth.setCredentials({ access_token: ctx.session.accessToken });
         const tasksApi = google.tasks({ version: "v1", auth });
-        // Get the current date in YYYY-MM-DD format for the due date
+        // get the current date in YYYY-MM-DD format for the due date
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
@@ -58,7 +57,7 @@ export const googleTasksRouter = createTRPCRouter({
             taskId: response.data.id,
             taskTitle: response.data.title,
             message: `Task "${response.data.title}" created successfully!`,
-            uiId: input.uiId, // <--- AND THIS LINE IS CRUCIAL: ADD IT TO THE RETURN OBJECT
+            uiId: input.uiId, // super important
           };
         } else {
           // This case usually means response.ok was false, but sometimes API might return non-200 with data

@@ -18,7 +18,6 @@ export const env = createEnv({
       .enum(["development", "test", "production"])
       .default("development"),
     HF_ACCESS_TOKEN: z.string().min(1),
-    HF_SUMMARIZATION_MODEL: z.string().min(1),
     HF_TASK_EXTRACTION_MODEL: z.string().min(1),
   },
 
@@ -42,7 +41,6 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     HF_ACCESS_TOKEN: process.env.HF_ACCESS_TOKEN,
-    HF_SUMMARIZATION_MODEL: process.env.HF_SUMMARIZATION_MODEL,
     HF_TASK_EXTRACTION_MODEL: process.env.HF_TASK_EXTRACTION_MODEL,
   },
   /**
