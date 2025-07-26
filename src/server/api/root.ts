@@ -1,4 +1,3 @@
-import { taskRouter } from "./routers/task";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { hfRouter } from "./routers/hf";
 import { googleTasksRouter } from "./routers/googleTasks";
@@ -8,7 +7,6 @@ import { googleTasksRouter } from "./routers/googleTasks";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  task: taskRouter,
   hf: hfRouter,
   googleTasks: googleTasksRouter,
 });
