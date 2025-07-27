@@ -185,7 +185,7 @@ export function MindlystClient() {
   return (
     <div className="w-full min-h-screen flex min-h-screen flex-col items-center justify-center py-16 px-4 sm:px-6 lg:px-8 gap-y-12 bg-gradient-to-b from-background to-card text-text">
       <h1 className="text-5xl font-extrabold tracking-tight text-text sm:text-[5rem]">
-        Mind<span className="text-title-accent">lyst</span>
+        mind<span className="text-title-accent">lyst</span>
       </h1>
       <p className="text-lg text-muted text-center">
         Unload your thoughts, let AI extract your tasks, and manage them with Google Tasks.
