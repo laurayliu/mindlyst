@@ -1,17 +1,18 @@
-// src/app/_components/MindlystClient.tsx
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { api } from "~/trpc/react";
-import type { RouterOutputs } from "~/trpc/react"; // Correct import path
+import type { RouterOutputs } from "~/trpc/react";
+import { motion, AnimatePresence } from "motion/react";
 import { LuLoader, LuPlus, LuCheck, LuInfo } from "react-icons/lu";
+import { FcGoogle } from "react-icons/fc";
 
-// Define type for ExtractedTask
+// type for extracted task
 type ExtractedTask = RouterOutputs["hf"]["extractTasks"]["extractedTasks"][number];
-// Define type for a task that has been sent to Google Tasks (for UI state)
+// type for a task sent to google tasks
 type SentTask = ExtractedTask & {
-  uiId: string; // Add a unique UI ID for stable rendering and tracking
-  status: "idle" | "pending" | "success" | "failed"; // 'idle' for not yet attempted
+  uiId: string;
+  status: "idle" | "pending" | "success" | "failed";
   message?: string;
 };
 
@@ -19,21 +20,20 @@ export function MindlystClient() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
 
-  // --- State for Task Extraction & Google Tasks ---
   const [taskExtractionInput, setTaskExtractionInput] = useState("");
   const [tasksToProcess, setTasksToProcess] = useState<SentTask[]>([]);
   const [taskExtractionLoading, setTaskExtractionLoading] = useState(false);
   const [taskExtractionError, setTaskExtractionError] = useState<string | null>(null);
-  const [googleTasksOverallLoading, setGoogleTasksOverallLoading] = useState(false);
+
+  const [addingAllTasksLoading, setAddingAllTasksLoading] = useState(false);
   const [googleTasksOverallError, setGoogleTasksOverallError] = useState<string | null>(null);
   const [googleTasksOverallSuccess, setGoogleTasksOverallSuccess] = useState<string | null>(null);
 
-  // tRPC mutation for AI Task Extraction
   const extractTasksMutation = api.hf.extractTasks.useMutation({
     onMutate: () => {
       setTaskExtractionLoading(true);
       setTaskExtractionError(null);
-      setTasksToProcess([]); // Clear previous tasks
+      setTasksToProcess([]);
       setGoogleTasksOverallSuccess(null);
       setGoogleTasksOverallError(null);
     },
@@ -58,12 +58,8 @@ export function MindlystClient() {
     },
   });
 
-  // tRPC mutation for creating Google Tasks
   const createGoogleTaskMutation = api.googleTasks.createTask.useMutation({
     onMutate: (newTaskInput) => {
-      setGoogleTasksOverallLoading(true);
-      setGoogleTasksOverallError(null);
-      setGoogleTasksOverallSuccess(null);
       setTasksToProcess((prev) =>
         prev.map((task) =>
           task.uiId === newTaskInput.uiId
@@ -80,22 +76,6 @@ export function MindlystClient() {
             : task,
         ),
       );
-      const allTasksProcessed = tasksToProcess.every(t => t.status !== "pending");
-      if (allTasksProcessed) {
-        setGoogleTasksOverallLoading(false);
-        const successfulCount = tasksToProcess.filter(t => t.status === "success").length;
-        const failedCount = tasksToProcess.filter(t => t.status === "failed").length;
-        
-        if (successfulCount > 0 && failedCount === 0) {
-            setGoogleTasksOverallSuccess(`Successfully added all ${successfulCount} tasks to Google Tasks!`);
-        } else if (successfulCount > 0 && failedCount > 0) {
-            setGoogleTasksOverallSuccess(`Added ${successfulCount} tasks. ${failedCount} tasks failed. Check specific task statuses.`);
-            setGoogleTasksOverallError(null);
-        } else if (failedCount > 0 && successfulCount === 0) {
-             setGoogleTasksOverallError("All tasks failed to add to Google Tasks. Check specific task statuses.");
-             setGoogleTasksOverallSuccess(null);
-        }
-      }
     },
     onError: (err, variables) => {
       setTasksToProcess((prev) =>
@@ -105,35 +85,46 @@ export function MindlystClient() {
             : task,
         ),
       );
-      if (!googleTasksOverallSuccess) {
-          setGoogleTasksOverallError(`Failed to add task "${variables.taskTitle}": ${err.message}`);
-      }
-      console.error("Google Task Creation Mutation Error for task:", variables.taskTitle, err);
-      const allTasksProcessed = tasksToProcess.every(t => t.status !== "pending");
-      if (allTasksProcessed) {
-        setGoogleTasksOverallLoading(false);
-        const successfulCount = tasksToProcess.filter(t => t.status === "success").length;
-        const failedCount = tasksToProcess.filter(t => t.status === "failed").length;
-        
-        if (successfulCount > 0 && failedCount === 0) {
-            setGoogleTasksOverallSuccess(`Successfully added all ${successfulCount} tasks to Google Tasks!`);
-        } else if (successfulCount > 0 && failedCount > 0) {
-            setGoogleTasksOverallSuccess(`Added ${successfulCount} tasks. ${failedCount} tasks failed. Check specific task statuses.`);
-            setGoogleTasksOverallError(null);
-        } else if (failedCount > 0 && successfulCount === 0) {
-             setGoogleTasksOverallError("All tasks failed to add to Google Tasks. Check specific task statuses.");
-             setGoogleTasksOverallSuccess(null);
-        }
-      }
+      console.error("Google task creation mutation error for task:", variables.taskTitle, err);
     },
   });
 
-  // --- Handlers ---
+  // effect to manage addingAllTasksLoading and overall messages
+  useEffect(() => {
+    // if any task is pending
+    const anyTaskPending = tasksToProcess.some(t => t.status === "pending");
+    setAddingAllTasksLoading(anyTaskPending);
+
+    // only update overall messages if no tasks pending
+    if (!anyTaskPending && tasksToProcess.length > 0) {
+      const attemptedTasks = tasksToProcess.filter(t => t.status !== "idle");
+      const successfulCount = attemptedTasks.filter(t => t.status === "success").length;
+      const failedCount = attemptedTasks.filter(t => t.status === "failed").length;
+
+      if (attemptedTasks.length === 0) { // no tasks attempted
+        setGoogleTasksOverallSuccess(null);
+        setGoogleTasksOverallError(null);
+      } else if (successfulCount > 0 && failedCount === 0) {
+        setGoogleTasksOverallSuccess(`Successfully added ${successfulCount} tasks to Google tasks!`);
+        setGoogleTasksOverallError(null);
+      } else if (successfulCount > 0 && failedCount > 0) {
+        setGoogleTasksOverallSuccess(`Added ${successfulCount} tasks. ${failedCount} tasks failed. Check specific task statuses.`);
+        setGoogleTasksOverallError(null);
+      } else if (failedCount > 0 && successfulCount === 0) {
+        setGoogleTasksOverallError("All tasks failed to add to Google tasks. Check specific task statuses.");
+        setGoogleTasksOverallSuccess(null);
+      }
+    } else if (tasksToProcess.length === 0) { // no tasks extracted yet
+        setGoogleTasksOverallSuccess(null);
+        setGoogleTasksOverallError(null);
+    }
+  }, [tasksToProcess]); // rerun when tasksToProcess changes
+
   const handleExtractTasks = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = taskExtractionInput.trim();
     if (trimmedInput.length < 50) {
-      setTaskExtractionError("Please enter at least 50 characters for effective task extraction.");
+      setTaskExtractionError("Please enter at least 50 characters for effective task extraction");
       return;
     }
     setTaskExtractionError(null);
@@ -144,11 +135,15 @@ export function MindlystClient() {
     if (task.status === "pending" || task.status === "success") {
       return;
     }
+
+    // update task status in UI
     setTasksToProcess((prev) =>
       prev.map((t) =>
         t.uiId === task.uiId ? { ...t, status: "pending", message: undefined } : t,
       ),
     );
+
+    // call the trpc mutation
     createGoogleTaskMutation.mutate({
       taskTitle: task.title,
       taskNotes: task.notes,
@@ -158,13 +153,13 @@ export function MindlystClient() {
 
   const handleAddAllExtractedTasksToGoogle = useCallback(() => {
     const tasksToProcessNow = tasksToProcess.filter(t => t.status === "idle" || t.status === "failed");
+
     if (tasksToProcessNow.length === 0) {
       setGoogleTasksOverallError("No tasks available to add or all have been processed.");
       return;
     }
-    setGoogleTasksOverallLoading(true);
-    setGoogleTasksOverallError(null);
     setGoogleTasksOverallSuccess(null);
+    setGoogleTasksOverallError(null);
     setTasksToProcess(prevTasks =>
         prevTasks.map(task => {
             if (tasksToProcessNow.some(t => t.uiId === task.uiId)) {
@@ -173,6 +168,7 @@ export function MindlystClient() {
             return task;
         })
     );
+
     tasksToProcessNow.forEach(task => {
         createGoogleTaskMutation.mutate({
             taskTitle: task.title,
@@ -180,82 +176,184 @@ export function MindlystClient() {
             uiId: task.uiId,
         });
     });
+    // useEffect sets addingAllTasksLoading to true cuz tasksToProcess now contains pending tasks
   }, [tasksToProcess, createGoogleTaskMutation]);
 
-  return (
-    <div className="w-full min-h-screen flex min-h-screen flex-col items-center justify-center py-16 px-4 sm:px-6 lg:px-8 gap-y-12 bg-gradient-to-b from-background to-card text-text">
-      <h1 className="text-5xl font-extrabold tracking-tight text-text sm:text-[5rem]">
-        mind<span className="text-title-accent">lyst</span>
-      </h1>
-      <p className="text-lg text-muted text-center">
-        Unload your thoughts, let AI extract your tasks, and manage them with Google Tasks.
-      </p>
+  // animated subheadings
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const phrases = [
+    "unload your thoughts",
+    "let AI extract your tasks",
+    "stay organized with Google tasks"
+  ];
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentPhraseIndex(prev => (prev + 1) % phrases.length);
+    }, 3000); // change every 3 seconds
+    
+    return () => clearInterval(interval);
+  }, [phrases.length]);
 
-      {/* Auth Section */}
-      <div className="w-full max-w-2xl rounded-lg bg-card p-6 text-center shadow-xl">
-        <h2 className="mb-4 text-2xl font-bold text-text">Google Tasks Integration</h2>
-        {status === "loading" ? (
-          <p className="text-muted">Loading authentication status...</p>
-        ) : isAuthenticated ? (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-lg text-text">
-              Signed in as <span className="font-semibold">{session.user?.name || session.user?.email /* eslint-disable-line @typescript-eslint/prefer-nullish-coalescing */}</span>
-            </p>
-            <button
-              onClick={() => signOut()}
-              className="rounded-lg bg-error px-6 py-2 font-semibold text-white transition hover:bg-error/80"
-            >
-              Sign Out
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-lg text-muted">Sign in to sync tasks with Google.</p>
-            <button
-              onClick={() => signIn("google")}
-              className="rounded-lg bg-primary px-6 py-2 font-semibold text-white transition hover:bg-primary/80"
-            >
-              Sign In with Google
-            </button>
-          </div>
-        )}
+  return (
+    <div className="w-full flex flex-col items-center justify-center">
+      <motion.h1
+        className="text-5xl font-extrabold tracking-tight sm:text-[5rem]"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        mind<span className="text-title-accent">lyst</span>
+      </motion.h1>
+
+      {/* animating subheading */}
+      <div className="h-20 mt-2 flex flex-col items-center justify-center text-center relative">
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-transparent via-title-accent to-transparent rounded-full opacity-60"></div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPhraseIndex}
+            initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -20, filter: "blur(4px)" }}
+            transition={{ duration: 0.7, ease: "easeInOut" }}
+            className="text-xl text-muted max-w-2xl px-4 py-2"
+          >
+            {phrases[currentPhraseIndex]}
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="flex space-x-2 mt-4">
+          {phrases.map((_, index) => (
+            <motion.div
+              key={index}
+              className={`w-2 h-2 rounded-full ${
+                index === currentPhraseIndex ? "bg-title-accent" : "bg-muted"
+              }`}
+              initial={{ scale: 0.8 }}
+              animate={{
+                scale: index === currentPhraseIndex ? 1.2 : 0.8,
+                opacity: index === currentPhraseIndex ? 1 : 0.5
+              }}
+              transition={{ duration: 0.3 }}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Task Extraction Section (remains the main feature) */}
-      <div className="w-full max-w-2xl rounded-lg bg-card p-6 shadow-xl">
-        <h2 className="mb-4 text-2xl font-bold text-text">Extract Tasks from Text</h2>
+      {/* auth */}
+      <motion.div
+        className="w-full max-w-2xl rounded-2xl bg-card/80 backdrop-blur-lg p-5 text-center shadow-xl border border-white/10 mt-8"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+      >
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <FcGoogle className="text-2xl" />
+          <div className="text-left">
+            <h3 className="text-lg font-semibold text-text">Google tasks sync</h3>
+            {status === "loading" ? (
+              <p className="text-sm text-muted">checking status...</p>
+            ) : isAuthenticated ? (
+              <p className="text-sm text-muted">
+                connected as <span className="font-medium">{session.user?.name ?? session.user?.email?.split('@')[0]}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted">connect to sync tasks</p>
+            )}
+          </div>
+        </div>
+
+          {isAuthenticated ? (
+            <motion.button
+              onClick={() => signOut()}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-error/20 to-error/40 px-4 py-2.5 text-sm font-medium text-error backdrop-blur-sm transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span>sign out</span>
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={() => signIn("google")}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary/20 to-primary/40 px-4 py-2.5 text-sm font-medium text-primary backdrop-blur-sm transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span>sign in</span>
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
+
+      {/* task extraction */}
+      <motion.div
+        className="w-full max-w-2xl rounded-2xl bg-card/80 backdrop-blur-lg p-6 shadow-xl border border-white/10 mt-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+      >
+        <h2 className="mb-4 text-2xl font-bold text-text">extract tasks from text</h2>
+
         <form onSubmit={handleExtractTasks} className="flex flex-col gap-4">
           <textarea
-            className="min-h-[120px] w-full rounded-md border border-gray-600 bg-card p-3 text-text placeholder:text-muted focus:border-primary focus:ring-primary focus:outline-none transition-colors duration-200"
+            className="min-h-[120px] w-full rounded-xl border border-white/10 bg-card/50 p-4 text-text placeholder:text-muted focus:border-primary focus:ring-primary focus:outline-none transition-colors duration-200 backdrop-blur-sm"
             value={taskExtractionInput}
             onChange={(e) => setTaskExtractionInput(e.target.value)}
-            placeholder="Enter a paragraph or brainstorm notes to extract tasks (min 50 chars)... E.g., 'I need to prepare for the meeting next week, that means creating an agenda and emailing it by Tuesday. Also, I should research new project management tools. Oh, and pick up dry cleaning by Friday.'"
+            placeholder="enter a paragraph or brainstorm notes to extract tasks (min 50 chars)..."
             disabled={taskExtractionLoading}
-            aria-label="Enter text for task extraction"
+            aria-label="enter text for task extraction"
           />
-          <button
+
+          <motion.button
             type="submit"
-            className="rounded-lg bg-secondary px-6 py-3 font-semibold text-white transition hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-xl bg-gradient-to-r from-primary to-secondary px-6 py-3 font-semibold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={taskExtractionLoading || taskExtractionInput.trim().length < 50}
-            aria-label={taskExtractionLoading ? "Extracting tasks..." : "Extract Tasks"}
+            aria-label={taskExtractionLoading ? "extracting tasks..." : "extract tasks"}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             {taskExtractionLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <LuLoader className="animate-spin" /> Extracting Tasks...
+                <LuLoader className="animate-spin" /> extracting tasks...
               </span>
             ) : (
-              "Extract Tasks"
+              "extract tasks"
             )}
-          </button>
-          {taskExtractionError && <p className="text-error mt-2 text-sm text-center">{taskExtractionError}</p>}
-        </form>
+          </motion.button>
 
+          {taskExtractionError && (
+            <AnimatePresence>
+              <motion.p
+                className="text-error mt-2 text-sm text-center"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                {taskExtractionError}
+              </motion.p>
+            </AnimatePresence>
+          )}
+        </form>
         {tasksToProcess.length > 0 && (
-          <div className="mt-6">
-            <h3 className="mb-3 text-xl font-bold text-text">Extracted Tasks:</h3>
+          <motion.div
+            className="mt-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h3 className="mb-3 text-xl font-bold text-text">Extracted tasks:</h3>
             <ul className="space-y-4">
+              <AnimatePresence>
               {tasksToProcess.map((task) => (
-                <li key={task.uiId} className="rounded-md bg-card p-4 shadow-sm border border-gray-600">
+                <motion.li
+                  key={task.uiId}
+                  className="rounded-xl bg-card/60 p-4 shadow-sm border border-white/10 backdrop-blur-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
                   <p className="text-lg font-semibold text-text">{task.title}</p>
                   {task.notes && (
                     <p className="mb-2 text-muted text-sm italic">Notes: {task.notes}</p>
@@ -267,53 +365,92 @@ export function MindlystClient() {
                       </span>
                     ) : task.status === "success" ? (
                       <span className="flex items-center gap-1 font-medium text-success">
-                        <LuCheck /> Added to Google Tasks!
+                        <LuCheck /> Added to Google tasks!
                       </span>
                     ) : task.status === "failed" ? (
                       <span className="flex items-center gap-1 font-medium text-error">
                         <LuInfo /> Failed: {task.message || "Unknown error" /* eslint-disable-line @typescript-eslint/prefer-nullish-coalescing */}
                       </span>
                     ) : ( // task.status === "idle"
-                      <button
+                      <motion.button
                         onClick={() => handleAddTaskToGoogle(task)}
-                        className="flex items-center gap-1 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition hover:bg-success/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isAuthenticated || googleTasksOverallLoading}
+                        className="flex items-center gap-1 rounded-xl bg-success px-4 py-2 text-sm font-semibold text-white transition hover:bg-success/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isAuthenticated || addingAllTasksLoading}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
                         <LuPlus /> Add to Google Tasks
-                      </button>
+                      </motion.button>
                     )}
                   </div>
-                </li>
+                </motion.li>
               ))}
+              </AnimatePresence>
             </ul>
-            {/* Add All Tasks Button */}
+
+            {/* Add all taasks button */}
             {tasksToProcess.some(t => t.status === "idle" || t.status === "failed") && (
-                <div className="mt-6 text-center">
-                    <button
-                        onClick={handleAddAllExtractedTasksToGoogle}
-                        className="rounded-lg bg-secondary px-6 py-3 font-semibold text-white transition hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isAuthenticated || googleTasksOverallLoading}
-                    >
-                        {googleTasksOverallLoading ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <LuLoader className="animate-spin" /> Adding All Tasks...
-                            </span>
-                        ) : (
-                            "Add All Remaining to Google Tasks"
-                        )}
-                    </button>
-                </div>
+              <motion.div
+                className="mt-6 text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <motion.button
+                  onClick={handleAddAllExtractedTasksToGoogle}
+                  className="rounded-xl bg-gradient-to-r from-primary to-secondary px-6 py-3 font-semibold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!isAuthenticated || addingAllTasksLoading}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {addingAllTasksLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <LuLoader className="animate-spin" /> Adding all tasks...
+                    </span>
+                  ) : (
+                    "Add all remaining to Google tasks"
+                  )}
+                </motion.button>
+              </motion.div>
             )}
-            {googleTasksOverallSuccess && <p className="text-success mt-4 text-sm text-center">{googleTasksOverallSuccess}</p>}
-            {googleTasksOverallError && <p className="text-error mt-4 text-sm text-center">{googleTasksOverallError}</p>}
+
+            {/* status messages with animations */}
+            <AnimatePresence>
+              {googleTasksOverallSuccess && (
+                <motion.p
+                  className="text-success mt-4 text-sm text-center"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  {googleTasksOverallSuccess}
+                </motion.p>
+              )}
+
+              {googleTasksOverallError && (
+                <motion.p
+                  className="text-error mt-4 text-sm text-center"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  {googleTasksOverallError}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
             {!isAuthenticated && (
-                <p className="text-sm text-warning text-center mt-4">
-                    Please sign in with Google to add tasks.
-                </p>
+              <motion.p
+                className="text-sm text-warning text-center mt-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                Please sign in with Google to add tasks
+              </motion.p>
             )}
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

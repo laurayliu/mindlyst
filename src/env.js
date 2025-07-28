@@ -3,16 +3,15 @@ import { z } from "zod";
 
 export const env = createEnv({
   /**
-   * Specify your server-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars.
+   * Specify your server-side environment variables schema here
    */
   server: {
     AUTH_SECRET:
       process.env.NODE_ENV === "production"
-        ? z.string()
-        : z.string().optional(),
-    GOOGLE_CLIENT_ID: z.string(),
-    GOOGLE_CLIENT_SECRET: z.string(),
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
     DATABASE_URL: z.string().url(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
@@ -22,9 +21,8 @@ export const env = createEnv({
   },
 
   /**
-   * Specify your client-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars. To expose them to the client, prefix them with
-   * `NEXT_PUBLIC_`.
+   * Specify your client-side environment variables schema here. To expose them to the client, prefix them with
+   * `NEXT_PUBLIC_`
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
@@ -32,7 +30,7 @@ export const env = createEnv({
 
   /**
    * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
-   * middlewares) or client-side so we need to destruct manually.
+   * middlewares) or client-side so we need to destruct manually
    */
   runtimeEnv: {
     AUTH_SECRET: process.env.AUTH_SECRET,

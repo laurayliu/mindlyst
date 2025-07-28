@@ -1,10 +1,9 @@
-// src/server/auth/config.ts
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { DefaultSession } from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-import { db } from "~/server/db"; // Prisma client instance
+import { db } from "~/server/db"; // prisma client instance
 import { env } from "~/env.js";
 
 /**
@@ -19,7 +18,7 @@ declare module "next-auth" {
       id: string;
       // ...other properties
     } & DefaultSession["user"];
-    accessToken?: string; // Add accessToken to session (important for Google APIs)
+    accessToken?: string;
   }
 
   interface JWT {
@@ -78,7 +77,7 @@ export const authConfig = {
           response_type: "code",
         },
       },
-
+      // maps google's profile data to nextauth.js user type
       profile(profile: GoogleProfile) {
         return {
           id: profile.sub,

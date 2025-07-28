@@ -1,4 +1,3 @@
-// src/server/api/routers/hf.ts
 import { z } from "zod";
 import {
   createTRPCRouter,
@@ -6,33 +5,33 @@ import {
 } from "~/server/api/trpc";
 import { env } from "~/env.js";
 
-// Get API token and models from environment variables
-const HF_ACCESS_TOKEN = env.HF_ACCESS_TOKEN as string;
-const HF_TASK_EXTRACTION_MODEL = env.HF_TASK_EXTRACTION_MODEL as string; // This will now include ':featherless-ai'
+const HF_ACCESS_TOKEN = env.HF_ACCESS_TOKEN;
+const HF_TASK_EXTRACTION_MODEL = env.HF_TASK_EXTRACTION_MODEL;
 
-// Base URLs for Hugging Face Inference API
+// gotta use the specific chat completions endpoint for mistral
 const HF_TASK_EXTRACTION_API_URL = "https://router.huggingface.co/v1/chat/completions";
 
-// Define the expected output structure for individual tasks (for extraction)
+// expected output structure for tasks
 const taskSchema = z.object({
   title: z.string().min(1, "Task title is required"),
   notes: z.string().optional(),
 });
 
+// update; error can be string or object
 const hfErrorResponseSchema = z.object({
-  error: z.union([ // The 'error' field can be a string OR an object
+  error: z.union([
     z.string(),
     z.object({
       message: z.string(),
       type: z.string().optional(),
       param: z.string().optional(),
       code: z.string().optional(),
-    }).passthrough(), // Allow other fields in the error object
+    }).passthrough(),
   ]),
   estimated_time: z.number().optional(),
 }).passthrough();
 
-// Schema for the Chat Completions API response for Mistral
+// schema for chat completions api response for mistral
 const hfChatCompletionsResponseSchema = z.object({
   choices: z.array(
     z.object({
@@ -41,21 +40,18 @@ const hfChatCompletionsResponseSchema = z.object({
       }),
     }),
   ),
-  // Add other fields you might want to validate if needed, eg., id, model, etc.
 });
 
 export const hfRouter = createTRPCRouter({
-
-  // --- Task Extraction Procedure (ADAPTED FOR MISTRAL CHAT COMPLETIONS ENDPOINT) ---
   extractTasks: publicProcedure
     .input(
       z.object({
-        text: z.string().min(50, "Please provide more details (min 50 chars) for task extraction."),
+        text: z.string().min(50, "Please provide more details (min 50 chars) for task extraction"),
       }),
     )
     .mutation(async ({ input }) => {
       try {
-        // PROMPT FORMAT FOR MISTRAL-INSTRUCT MODELS (within 'messages' array)
+        // prompt format for mistral-instruct model
         const chatPromptContent = `[INST] You are a helpful assistant. From the following text, extract a list of distinct, actionable tasks. For each task, provide a "title" and optional "notes". Respond ONLY with a JSON array of tasks. Do not include any other text or explanation.
 
         Example Input:
@@ -93,11 +89,12 @@ export const hfRouter = createTRPCRouter({
               },
             ],
             max_tokens: 500,
-            temperature: 0.0,
+            temperature: 0.0, // deterministic for getting json
           }),
         });
 
         if (!response.ok) {
+          // handle non-200 http responses
           let rawErrorBody: unknown;
           const contentType = response.headers.get("content-type");
           const isJson = contentType?.includes("application/json") ?? false;
@@ -126,25 +123,36 @@ export const hfRouter = createTRPCRouter({
 
           console.error("Hugging Face API Task Extraction Error:", response.status, rawErrorBody);
           if (response.status === 503) {
-            throw new Error(`Hugging Face model is loading or busy for task extraction: ${errorMessageDetail}. Please try again in a few moments.`);
+            throw new Error(`Hugging Face model is loading or busy for task extraction: ${errorMessageDetail}. Please try again in a few moments`);
           }
           if (response.status === 400 && errorMessageDetail.includes("model_not_supported")) {
-             throw new Error(`Hugging Face API error (400 Model Not Supported): Task extraction model '${HF_TASK_EXTRACTION_MODEL}' is not supported by your enabled providers/plan for this endpoint. Please verify model string and access.`);
+             throw new Error(`Hugging Face API error (400 Model Not Supported): Task extraction model '${HF_TASK_EXTRACTION_MODEL}' is not supported by your enabled providers/plan for this endpoint. Please verify model string and access`);
           }
           if (response.status === 404) {
-            throw new Error(`Hugging Face API error (404 Not Found): Task extraction model '${HF_TASK_EXTRACTION_MODEL}' might be incorrect, private, or not available on the public inference API, or you're using the wrong endpoint/payload format.`);
+            throw new Error(`Hugging Face API error (404 Not Found): Task extraction model '${HF_TASK_EXTRACTION_MODEL}' might be incorrect, private, or not available on the public inference API, or you're using the wrong endpoint/payload format`);
           }
           throw new Error(`Hugging Face API task extraction error (${response.status}): ${errorMessageDetail}`);
         }
 
+        // handles 200 OK responses
         const rawHfResult: unknown = await response.json();
-        const hfResult = hfChatCompletionsResponseSchema.parse(rawHfResult);
+        console.log("Raw HF Chat Completions Response:", JSON.stringify(rawHfResult, null, 2)); // diagnostic logging for now
+
+        let hfResult;
+        try {
+            hfResult = hfChatCompletionsResponseSchema.parse(rawHfResult);
+        } catch (zodError: unknown) {
+            console.error("Zod Validation Failed for HF Chat Completions Response:", zodError);
+            console.error("Raw response that failed validation:", JSON.stringify(rawHfResult, null, 2));
+            const errorMessage = zodError instanceof Error ? zodError.message : "Invalid response structure from AI";
+            throw new Error(`Failed to parse AI response: ${errorMessage}. The AI might be returning an unexpected format or an internal error`);
+        }
 
         let extractedText = "";
         if (hfResult.choices && hfResult.choices.length > 0 && hfResult.choices[0]?.message?.content) {
           extractedText = hfResult.choices[0].message.content;
         } else {
-          throw new Error("No text generated from Hugging Face for task extraction.");
+          throw new Error("No text generated from Hugging Face for task extraction");
         }
 
         let tasks: z.infer<typeof taskSchema>[] = [];
@@ -155,7 +163,7 @@ export const hfRouter = createTRPCRouter({
           console.error("Failed to parse AI output as JSON:", jsonError);
           console.error("AI Raw Output for Tasks:", extractedText);
           const parseErrorMessage = jsonError instanceof Error ? jsonError.message : "Invalid JSON format";
-          throw new Error(`AI returned unparseable or invalid JSON for tasks: ${parseErrorMessage}. Please refine your input or try again. Raw AI output logged.`);
+          throw new Error(`AI returned unparseable or invalid JSON for tasks: ${parseErrorMessage}. Please refine your input or try again. Raw AI output logged`);
         }
 
         return {
@@ -164,8 +172,8 @@ export const hfRouter = createTRPCRouter({
         };
       } catch (error: unknown) {
         console.error("Error extracting tasks with Hugging Face:", error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        throw new Error(`Failed to extract tasks: ${errorMessage}. Ensure your HF model is suitable for instruction following and try a more specific input.`);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+        throw new Error(`Failed to extract tasks: ${errorMessage}. Ensure your HF model is suitable for instruction following and try a more specific input`);
       }
     }),
 });

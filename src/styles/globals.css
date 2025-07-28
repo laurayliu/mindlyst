@@ -1,43 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 @import "tailwindcss";
+
 @theme {
   --font-sans: Roboto, ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-
-  /* Example: Define custom fonts if you add them (e.g., 'Inter' from Google Fonts) */
-  /* --font-body: Inter, sans-serif; */
-  /* --font-heading: 'Your Heading Font', sans-serif; */
-
-  /* Color palette */
   --color-background: oklch(0.0837 0.0118 255.89); /* dark blue-black */
-  --color-card: oklch(0.419 0.0899 257.24);     /* lighter dark blue */
-  --color-primary: oklch(0.5852 0.1153 249.12);  /* slightly brighter blue for main actions */
-  --color-secondary: oklch(0.8829 0.0606 247.01); /* slightly brighter teal for secondary actions/accents */
-  --color-text: oklch(0.95 0 0);          /* near white for main text */
-  --color-muted: oklch(0.8553 0.0611 247.04);          /* muted gray for secondary text/placeholders */
-  --color-success: oklch(0.8675 0.0677 211.4);   /* light green for success messages/buttons */
-  --color-error: oklch(0.8212 0.0769 285.41);       /* purple for sign out + error messages/buttons */
-  --color-warning: oklch(0.8476 0.0829 311.63);     /* pink for loading + warnings */
-
-  --color-title-accent: oklch(0.9474 0.0586 202.8); /* bright light blue #C0FAFF */
-
-
-  /* Customizing default spacing (e.g., if you want base unit 0.5rem instead of 0.25rem) */
-  /* --spacing: 0.5rem; */
-
-  /* Overriding specific default values (e.g., if you wanted a different default border-radius-lg) */
-  /* --radius-lg: 0.75rem; */
-
-  /* You can also add custom animations or override defaults here */
-  /* For example, a custom fade-in animation */
-  /* --animate-fade-in: fade-in 0.5s ease-out; */
-  /* @keyframes fade-in {
-    0% { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 1; transform: translateY(0); }
-  } */
-
-  /* If you want to clear ALL default colors and only use yours, use this (be careful!): */
-  /* --color-*: initial; */
-  /* Then you'd list all your specific colors like: */
-  /* --color-my-custom-blue: oklch(...); */
+  --color-card: oklch(0.419 0.0899 257.24); /* lighter dark blue for card */
+  --color-primary: oklch(0.5852 0.1153 249.12); /* blue for action */
+  --color-secondary: oklch(0.8829 0.0606 247.01); /* teal for secondary action */
+  --color-text: oklch(0.95 0 0); /* main text off white */
+  --color-muted: oklch(0.8553 0.0611 247.04); /* gray for secondary text */
+  --color-success: oklch(0.8675 0.0677 211.4); /* light green */
+  --color-error: oklch(0.8212 0.0769 285.41); /* purple for errors and sign out */
+  --color-warning: oklch(0.8476 0.0829 311.63); /* pink for warnings and loading */
+  --color-title-accent: oklch(0.9474 0.0586 202.8); /* bright light blue */
 }

@@ -2,9 +2,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { hfRouter } from "./routers/hf";
 import { googleTasksRouter } from "./routers/googleTasks";
 /**
- * This is the primary router for your server.
- *
- * All routers added in /api/routers should be manually added here.
+ * Primary router for server.
  */
 export const appRouter = createTRPCRouter({
   hf: hfRouter,
