@@ -8,7 +8,7 @@ This project is built as part of the API challenge, showcasing an integration of
 
 Experience Mindlyst live:
 
-**[Try Mindlyst Here]([https://YOUR_VERCEL_APP_URL.vercel.app](https://mindlyst.vercel.app/))**
+**[Try Mindlyst Here]([https://mindlyst.vercel.app/](https://mindlyst.vercel.app/))**
 
 ## Demo
 
