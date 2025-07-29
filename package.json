@@ -26,6 +26,7 @@
     "@auth/prisma-adapter": "^2.7.2",
     "@google-cloud/tasks": "^6.2.0",
     "@prisma/client": "^6.5.0",
+    "@prisma/extension-accelerate": "^2.0.2",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.69.0",
     "@trpc/client": "^11.0.0",
