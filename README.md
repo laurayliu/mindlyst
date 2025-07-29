@@ -12,7 +12,11 @@ Experience Mindlyst live:
 
 ## Demo
 
-https://github.com/user-attachments/assets/3fcc97cf-4b94-41d2-8806-19d4568cac85
+
+
+https://github.com/user-attachments/assets/6a7a879d-fd38-446d-ad77-5545cffcf317
+
+
 
 ## Features
 
