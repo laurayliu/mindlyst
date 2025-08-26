@@ -39,7 +39,7 @@ This project explores and utilizes the following technologies:
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/your-username/mindlyst.git
+    git clone https://github.com/laurayliu/mindlyst.git
     cd mindlyst
     ```
 2.  **Install dependencies**
